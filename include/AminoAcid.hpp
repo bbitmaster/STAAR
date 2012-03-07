@@ -68,6 +68,14 @@
 #define O_1_PLANE_COORD_AG 0
 #define O_2_PLANE_COORD_AG 1
 
+//these are used by the getType method
+//note - we index an an array based on these, so be careful changing them!
+#define AATYPE_PI          0
+#define AATYPE_ANION       1
+#define AATYPE_CATION      2
+#define AATYPE_UNKNOWN     3
+#define AATYPE_MAX         4
+
 #define HYDROGEN_BOND_DISTANCE 0.632469
 
 class AminoAcid{
@@ -76,6 +84,8 @@ private:
   // information order to calculate the angle later
   void centerPHEorTYR();
   void centerTRP();
+  void centerLYS();
+  void centerARG();
 
   // Calculates the center of mass for the PO4, 2HP, and PI ligands
   //void centerPO4();
@@ -100,28 +110,38 @@ private:
   void centerGLU_oxygen();
 
   void centerPHEorTYR_simplified();
+  void centerLYS_charge();
+  void centerARG_charge();
   void centerASP_charge();
   void centerGLU_charge();
 
   void printPHEorTYR(FILE* output);
+  void printLYS(FILE* output);
+  void printARG(FILE* output);
   void printASP(FILE* output);
   void printGLU(FILE* output);
 
   // These functions mark the alternate locations of the atoms that were
   // not used in the calculation of the center of mass
   void markAltLocAtomsPHEorTYR(int index);
+  void markAltLocAtomsLYS(int index);
+  void markAltLocAtomsARG(int index);
   void markAltLocAtomsASP(int index);
   void markAltLocAtomsGLU(int index);
   void markAltLocAtomsPO4or2HPorPI(int index);
   void markAltLocAtoms2POorPO3(int index);
 
   void unmarkAltLocAtomsPHEorTYR();
+  void unmarkAltLocAtomsLYS();
+  void unmarkAltLocAtomsARG();
   void unmarkAltLocAtomsASP();
   void unmarkAltLocAtomsGLU();
   void unmarkAltLocAtomsPO4or2HPorPI();
   void unmarkAltLocAtoms2POorPO3();
 
   string makeConectPHEorTYR();
+  string makeConectLYS();
+  string makeConectARG();
   string makeConectASP();
   string makeConectGLU();
   string makeConectPO4or2HPorPI();
@@ -155,6 +175,9 @@ public:
 
   // Prints out only the atoms that we need to create benzene or formate
   void printNeededAtoms(FILE* output);
+
+  // Get the type (Anion, Cation, Pi)
+  int getType();
 
   // Marks alt loc atoms that aren't used for center calculations
   void markAltLocAtoms(int index);
@@ -195,3 +218,4 @@ public:
 };
 
 #endif
+

@@ -73,6 +73,7 @@ public:
   string extension;             // extension to use to append to pdb list files
   float resolution;             // Max resolution cut-off
   char* chain_list;             // like pdblist, but contains chains to search in
+  bool triplets;		// Tells if we are searching for C-A-Pi Triplets.
 
   // Constructor that sets everything to empty stuff
   Options();  

@@ -80,6 +80,12 @@ void searchChainInformation(PDB & PDBfile,
                             Options & opts,
                             ofstream& output_file);
 
+void searchTripletInformation(PDB & PDBfile,
+                            unsigned int chain1,
+                            unsigned int chain2,
+                            unsigned int chain3,
+                            ofstream& output_file);
+
 void searchLigandsInformation(PDB & PDBfile,
                               Residue & ligand,
                               unsigned int chain1,
@@ -203,6 +209,26 @@ bool processSinglePDBFile(const char* filename,
           PDBfile.findLigands( opts.ligands );
         }
 
+      //If we're searching for triplets, then do that here
+      if(opts.triplets == true){
+      //this triple for loop is set up so that it searches through each
+      //unique combination of chains. e.g. if there are 3 chains labeled 1, 2, and 3
+      //it will search through the combinations: 111 112 113 122 123 133 222 223 233 333
+        for(unsigned int i = 0; i < PDBfile.chains.size(); i++)
+        {
+          for(unsigned int j = i; j < PDBfile.chains.size(); j++)
+          {
+            for(unsigned int k = j; k < PDBfile.chains.size(); k++)
+            {
+		searchTripletInformation(PDBfile,i,i,i,output_file);
+            }
+          }
+        }
+        return true;  //end here if we're processing triplets
+      }
+
+
+
       // Searching for interations within each chain
       for(unsigned int i = 0; i < PDBfile.chains.size(); i++)
         {
@@ -216,7 +242,7 @@ bool processSinglePDBFile(const char* filename,
             }
           // if we want to look for interactions between the ith chain
           // and each of the other chains, we set the indices to loop
-          // though all the chains
+          // through all the chains
           unsigned int start = 0;
           unsigned int end   = PDBfile.chains.size();
 
@@ -229,6 +255,8 @@ bool processSinglePDBFile(const char* filename,
 
           for(unsigned int j = start; j < end; j++)
             {
+
+
               for(int ii = 0; ii < numRes1; ii++)
                 {
                   for(int jj = 0; jj < numRes2; jj++)
@@ -448,6 +476,101 @@ void searchChainInformation(PDB & PDBfile,
 #ifdef DEBUG
   cout << purple << "\tDone" << endl;
 #endif
+}
+
+void searchTripletInformation(PDB & PDBfile,
+                            unsigned int chain1,
+                            unsigned int chain2,
+                            unsigned int chain3,
+                            ofstream& output_file)
+{
+  Chain* c1 = &(PDBfile.chains[chain1]);
+  Chain* c2 = &(PDBfile.chains[chain2]);
+  Chain* c3 = &(PDBfile.chains[chain3]);
+
+  double threshold = 7.0;
+
+  // Go through each AA combination in the chain
+  for(unsigned int i = 0; i < c1->aa.size(); i++)
+  {
+    for(unsigned int j = i+1; j < c2->aa.size(); j++)
+    {
+      for(unsigned int k = j+1; k < c3->aa.size(); k++)
+      {
+        int residueType[3];
+
+        residueType[0] = c1->aa[i].getType();
+	if(residueType[0] == AATYPE_UNKNOWN)continue;
+
+        residueType[1] = c2->aa[j].getType();
+	if(residueType[1] == AATYPE_UNKNOWN)continue;
+
+        residueType[2] = c3->aa[k].getType();
+	if(residueType[2] == AATYPE_UNKNOWN)continue;
+
+
+        int aaCount[AATYPE_MAX]; //count each of the amino acid types, accumulate them here
+
+	for(int kk=0;kk<AATYPE_MAX;kk++)aaCount[kk]=0;
+
+	for(int kk=0;kk<3;kk++)aaCount[residueType[kk]] += 1;
+
+        //if we have no PI's, then we don't care
+        if(aaCount[AATYPE_PI] == 0){
+          continue;
+        }
+
+        unsigned int closestDist_index1 = 0;
+        unsigned int closestDist_index2 = 0;
+
+	c1->aa[i].calculateCenter(false);
+	c2->aa[j].calculateCenter(false);
+	c3->aa[k].calculateCenter(false);
+
+        //compute all 3 distances
+        double dist[3];
+	dist[0] = findClosestDistance(c1->aa[i],c2->aa[j],FLT_MAX,&closestDist_index1,&closestDist_index2);
+	dist[1] = findClosestDistance(c1->aa[i],c3->aa[k],FLT_MAX,&closestDist_index1,&closestDist_index2);
+	dist[2] = findClosestDistance(c2->aa[j],c3->aa[k],FLT_MAX,&closestDist_index1,&closestDist_index2);
+
+        //cout << green << "triplet found: " << c1->aa[i].residue << " " << c2->aa[j].residue << " " << c3->aa[k].residue
+         //    << " distance1 " << dist[0] << " distance2 " << dist[1] << " distance3 " << dist[2] << endl;
+
+	//There are two cases for computing distances. If we have 1 Pi, we want the min distance from that Pi to the Anion and Cation
+	//If we have 2 or more Pi's we just want the minimum 2 out of 3 distances
+	if(aaCount[AATYPE_PI] == 1){
+          //the below code checks to see if the distance from the Pi to the anion's/cation's is above the threshold. If it is
+          //we end the loop
+          if(residueType[0] == AATYPE_PI){
+            if(dist[0] > threshold || dist[1] > threshold)continue;
+          }
+
+          if(residueType[1] == AATYPE_PI){
+            if(dist[0] > threshold || dist[2] > threshold)continue;
+          }
+
+          if(residueType[2] == AATYPE_PI){
+            if(dist[1] > threshold || dist[2] > threshold)continue;
+          }
+        }
+
+
+	if(aaCount[AATYPE_PI] > 1){
+          //if the minimum 2 distances are < threshold we want to keep this as a potential interaction.
+          
+          //the below checks for the inverse - which is that at least 2 distances are above the threshold.
+          if(((dist[0] > threshold) && (dist[1] > threshold)) ||
+             ((dist[1] > threshold) && (dist[2] > threshold)) ||
+             ((dist[0] > threshold) && (dist[2] > threshold))){
+            continue;
+          }
+        }
+
+        cout << purple << "triplet within distance found " << c1->aa[i].residue << " " << c2->aa[j].residue << " " << c3->aa[k].residue << " "
+             << " distance1 " << dist[0] << " distance2 " << dist[1] << " distance3 " << dist[2] << endl;
+      }
+    }
+  }
 }
 
 void searchLigandsInformation(PDB & PDBfile,

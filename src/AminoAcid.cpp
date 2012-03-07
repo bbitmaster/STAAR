@@ -362,6 +362,215 @@ void AminoAcid::centerTRP()
     }
 }
 
+// Calculate the centers for LYS
+// these AA need the following atoms:
+//   CE, NZ, and (for now) CD
+// all of the other ones don't affect the center
+// This also sets the plane coordinates used to calculate 
+// the angle later in the program
+void AminoAcid::centerLYS()
+{
+  // This makes a vector of a vector of ATOM*
+  // since we are looking for 3 atoms, the size of the outer vector
+  // is 3 while the size of the inner vectors are dependent on the
+  // number of alternate locations for each one. Indexes are:
+  // CD = 0 ; CE = 1 ; NZ = 2
+  vector< vector <Atom*> > temp;
+  temp.resize(3);
+
+  // Push all of the important atoms in their respective vectors
+  for (unsigned int i = 0; i < atom.size(); i++)
+    {
+      if (atom[i]->altLoc != ' ')
+	{
+	  altLoc = true;
+	}
+// The " CD " atom is only here to give three points needed
+// for a plane to be formed. Later, it will be used to find
+// the locations of the hydrogens and have it's position be
+// a location for a hydrogen.
+      if (atom[i]->name == " CD ")
+	{
+	  temp[2].push_back(atom[i]);
+	  atom[i]->skip = true;
+	}
+      else if (atom[i]->name == " CE ")
+	{
+	  temp[0].push_back(atom[i]);
+	}
+      else if (atom[i]->name == " NZ ")
+	{
+	  temp[1].push_back(atom[i]);
+	}
+      else
+	{
+	  // This means that this atom is not useful so we flag it
+	  atom[i]->skip = true;
+	}
+    }
+
+  // Error check. If we don't have at least one of each
+  // of the atoms, we throw a warning, set an ignore flag
+  // for future reference, and leave the function
+  if (temp[0].size() == 0 || temp[1].size() == 0 || temp[2].size() == 0)
+    {
+      skip = true;
+#ifndef DISABLE_WARNING
+      cout << cyan << "WARNING" << reset << ": Could not find all atoms in the TRP ring at "
+	   << atom[0]->resSeq << endl;
+#endif
+      return;
+    }
+  // Allocate size for all of the possible centers
+  center.resize( temp[0].size() * temp[1].size() * temp[2].size());
+
+  // And go through all combinations of the alternate locations
+  unsigned int index = 0;
+  for (unsigned int i = 0; i < temp[0].size(); i++) // Go through all the CE
+    {
+      for (unsigned int j = 0; j < temp[1].size(); j++) // Go through all the NZ
+	{
+	  for (unsigned int k = 0; k < temp[2].size(); k++, index++) // Go through all the CD
+	    {
+	      center[index].plane_info.resize(3);
+	      center[index].plane_info[0] = &temp[0][i]->coord;
+	      center[index].plane_info[1] = &temp[1][j]->coord;
+	      center[index].plane_info[2] = &temp[2][k]->coord;
+
+	      // This is a weighted average of the NZ and CE atoms 
+	      // weighted by their mass
+	        center[index] = ( temp[0][i]->coord * MASS_C +
+	  		          temp[1][j]->coord * MASS_N ) / (MASS_C + MASS_N);
+
+	      // And this is just so we know what combination of
+	      // alternate locations (may be able to take out later)
+	      string t;
+	      t.insert(t.end(), 1, temp[0][i]->altLoc);
+	      t.insert(t.end(), 1, temp[1][j]->altLoc);
+	      center[index].altLoc = t;
+#ifdef DEBUG
+	      cout << "CHECK: LYS" << atom[0]->resSeq << " : " << center[index] << endl;
+#endif
+	    }
+	}
+    }
+}
+
+// Calculate the centers for ARG
+// these AA need the following atoms:
+//   CD, NE, CZ, NH1, and NH2
+// all of the other ones don't affect the center
+// This also sets the plane coordinates used to calculate 
+// the angle later in the program
+void AminoAcid::centerARG()
+{
+  // This makes a vector of a vector of ATOM*
+  // since we are looking for 5 atoms, the size of the outer vector
+  // is 5 while the size of the inner vectors are dependent on the
+  // number of alternate locations for each one. Indexes are:
+  // CD = 0 ; NE = 1 ; CZ = 2 ; NH1 = 3 ; NH2 = 4
+  vector< vector <Atom*> > temp;
+  temp.resize(5);
+
+  // Push all of the important atoms in their respective vectors
+  for (unsigned int i = 0; i < atom.size(); i++)
+    {
+      if (atom[i]->altLoc != ' ' )
+	{
+	  altLoc = true;
+	}
+      if (atom[i]->name == " CD ")
+	{
+	  temp[0].push_back(atom[i]);
+	}
+      else if (atom[i]->name == " NE ")
+	{
+	  temp[1].push_back(atom[i]);
+	}
+      else if (atom[i]->name == " CZ ")
+	{
+	  temp[2].push_back(atom[i]);
+	}
+      else if (atom[i]->name == " NH1")
+	{
+	  temp[3].push_back(atom[i]);
+	}
+      else if (atom[i]->name == " NH2")
+	{
+	  temp[4].push_back(atom[i]);
+	}
+      else
+	{
+	  // This means that this atom is not useful so we flag it
+	  atom[i]->skip = true;
+	}
+    }
+
+  // Error check. If we don't have at least one of each
+  // of the atoms, we throw a warning, set an ignore flag
+  // for future reference, and leave the function
+  if (temp[0].size() == 0 || temp[1].size() == 0 ||
+      temp[2].size() == 0 || temp[3].size() == 0 ||
+      temp[4].size() == 0)
+    {
+      skip = true;
+#ifndef DISABLE_WARNING
+      cout << cyan << "WARNING" << reset << ": Could not find all atoms in the ARG ring at "
+	   << atom[0]->resSeq << endl;
+#endif
+      return;
+    }
+
+  // Allocate size for all of the possible centers
+  center.resize( temp[0].size() * temp[1].size() * temp[2].size() * temp[3].size() *
+		 temp[4].size());
+
+  // And go through all combinations of the alternate locations
+  unsigned int index = 0;
+  for (unsigned int i = 0; i < temp[0].size(); i++) // Go through all the CD
+    {
+      for (unsigned int j = 0; j < temp[1].size(); j++) // Go through all the NE
+	{
+	  for (unsigned int k = 0; k < temp[2].size(); k++) // Go through all the CZ
+	    {
+	      for (unsigned int l = 0; l < temp[3].size(); l++) // Go through all the NH1
+		{
+		  for (unsigned int m = 0; m < temp[4].size(); m++, index++) // Go through all the NH2
+		    {
+		      center[index].plane_info.resize(5);
+		      center[index].plane_info[0] = &temp[0][i]->coord;
+		      center[index].plane_info[1] = &temp[1][j]->coord;
+		      center[index].plane_info[2] = &temp[2][k]->coord;
+		      center[index].plane_info[3] = &temp[3][l]->coord;
+		      center[index].plane_info[4] = &temp[4][m]->coord;
+
+		      // This is a weighted average of the atoms weighted
+		      // by their mass
+		      center[index] = ( temp[0][i]->coord * MASS_C +
+					temp[1][j]->coord * MASS_N +
+					temp[2][k]->coord * MASS_C +
+					temp[3][l]->coord * MASS_N +
+					temp[4][m]->coord * MASS_N )/((MASS_C*2) + (MASS_N*3));
+
+		      // And this is just so we know what combination of
+		      // alternate locations (may be able to take out later)
+		      string t;
+		      t.insert(t.end(), 1, temp[0][i]->altLoc);
+		      t.insert(t.end(), 1, temp[1][j]->altLoc);
+		      t.insert(t.end(), 1, temp[2][k]->altLoc);
+		      t.insert(t.end(), 1, temp[3][l]->altLoc);
+		      t.insert(t.end(), 1, temp[4][m]->altLoc);
+		      center[index].altLoc = t;
+#ifdef DEBUG
+		      cout << "CHECK: ARG" << atom[0]->resSeq << " : " << center[index] << endl;
+#endif
+		    }
+		}
+	    }
+	}
+    }
+}
+
 // DO NOT USE THIS!!!! If you use this, a fairy will lose its wings!
 // This is only here for legacy reasons because this is what the old
 // STAAR code used.  It is wrong.
@@ -824,6 +1033,38 @@ void AminoAcid::centerASP_charge()
   center[0] += (tempCenter * HYDROGEN_BOND_DISTANCE) / tempCenter.norm();
 }
 
+void AminoAcid::centerLYS_charge()
+{
+  center.resize(1);
+  Coordinates tempA;
+  Coordinates tempB;
+  for (unsigned int i = 0; i < atom.size(); i++)
+    {
+      if (atom[i]->name == " NZ " && !atom[i]->skip)
+	{
+	  tempA = atom[i]->coord;
+	}
+      if (atom[i]->name == " CE " && !atom[i]->skip)
+	{
+	  tempB = atom[i]->coord;
+	}
+    }
+  center[0] = ((tempA * 82.7) + (tempB * 17.3)) / 100;
+}
+
+void AminoAcid::centerARG_charge()
+{
+  center.resize(1);
+  Coordinates tempCenter(0.0, 0.0, 0.0);
+  for (unsigned int i = 0; i < atom.size(); i++)
+    {
+      if (atom[i]->name == " CZ ")
+	{
+	  center[0] = atom[i]->coord;
+	}
+    }
+}
+
 void AminoAcid::centerGLU_charge()
 {
   center.resize(1);
@@ -1211,6 +1452,7 @@ void AminoAcid::center2POorPO3_charge()
 // Calculates the center of the amino acid
 void AminoAcid::calculateCenter(bool centerOfCharge)
 {
+
   if( !centerOfCharge )
     {
       // TRP
@@ -1233,6 +1475,16 @@ void AminoAcid::calculateCenter(bool centerOfCharge)
         {
           centerGLU_oxygen();
         }
+      // LYS
+      else if (residue == "LYS")
+	{
+	  centerLYS();
+	}
+      // ARG
+      else if (residue == "ARG")
+	{
+	  centerARG();
+	}
       else if (residue == "PO4" || residue == "2HP" || residue == " PI")
         {
           centerPO4or2HPorPI();
@@ -1264,6 +1516,16 @@ void AminoAcid::calculateCenter(bool centerOfCharge)
         {
           centerASP_charge();
         }
+       // LYS
+      else if (residue == "LYS")
+	{
+	  centerLYS_charge();
+	}
+       // ARG
+      else if (residue == "ARG")
+	{
+	  centerARG_charge();
+	}
        // GLU
       else if (residue == "GLU")
         {
@@ -1279,6 +1541,7 @@ void AminoAcid::calculateCenter(bool centerOfCharge)
         }
     }
 }
+
 
 void AminoAcid::calculateAnglesPreHydrogens(AminoAcid aa2,
                                             int index1,
@@ -1352,7 +1615,6 @@ bool AminoAcid::calculateDistancesAndAnglesPostHydrogens(AminoAcid aa2,
   // Calculate the distance between the centers
   // This is the vector pointing from the benzene center to formate center of charge
   Coordinates distance = aa2.center[0] - aa1.center[0];
-
   
   float num = dotProduct(perp, distance);
   float perpnorm = perp.norm();
@@ -1468,6 +1730,63 @@ void AminoAcid::markAltLocAtomsPHEorTYR(int index)
     }  
 }
 
+void AminoAcid::markAltLocAtomsLYS(int index)
+{
+  for (int i = 0; i < this->atom.size(); i++)
+    {
+      if (this->atom[i]->name == " CE " &&
+	  &this->atom[i]->coord != (this->center[index].plane_info[0]))
+	{
+	  this->atom[i]->skip = true;
+	}
+// This was, again, going to be used to add hydrogens
+// to the side chain without the use of openbabel and
+// I had to make sure the atom was not marked as skip.
+      else if (this->atom[i]->name == " CD " &&
+	       &this->atom[i]->coord != (this->center[index].plane_info[1]))
+	{
+	  this->atom[i]->skip = true;
+	}
+      else if (this->atom[i]->name == " NZ " &&
+	       &this->atom[i]->coord != (this->center[index].plane_info[2]))
+	{
+	  this->atom[i]->skip = true;
+	}
+    }
+}
+
+void AminoAcid::markAltLocAtomsARG(int index)
+{
+  for (int i = 0; i < this->atom.size(); i++)
+    {
+      if (this->atom[i]->name == " CD " &&
+	  &this->atom[i]->coord != (this->center[index].plane_info[0]))
+	{
+	  this->atom[i]->skip = true;
+	}
+      else if (this->atom[i]->name == " NE " &&
+	  &this->atom[i]->coord != (this->center[index].plane_info[1]))
+	{
+	  this->atom[i]->skip = true;
+	}
+      else if (this->atom[i]->name == " CZ " &&
+	  &this->atom[i]->coord != (this->center[index].plane_info[2]))
+	{
+	  this->atom[i]->skip = true;
+	}
+      else if (this->atom[i]->name == " NH1" &&
+	  &this->atom[i]->coord != (this->center[index].plane_info[3]))
+	{
+	  this->atom[i]->skip = true;
+	}
+      else if (this->atom[i]->name == "NH2" &&
+	  &this->atom[i]->coord != (this->center[index].plane_info[4]))
+	{
+	  this->atom[i]->skip = true;
+	}
+    }
+}
+
 void AminoAcid::markAltLocAtomsASP(int index)
 {
   for(int i=0; i < this->atom.size(); i++)
@@ -1577,6 +1896,14 @@ void AminoAcid::markAltLocAtoms(int index)
     {
       markAltLocAtomsPHEorTYR(index);
     }
+  else if (residue == "LYS")
+    {
+      markAltLocAtomsLYS(index);
+    }
+  else if (residue == "ARG")
+    {
+      markAltLocAtomsARG(index);
+    }
   else if(residue == "ASP")
     {
       markAltLocAtomsASP(index);
@@ -1624,6 +1951,56 @@ void AminoAcid::unmarkAltLocAtomsPHEorTYR()
           this->atom[i]->skip = false;
         }
     }  
+}
+
+void AminoAcid::unmarkAltLocAtomsLYS()
+{
+  for (int i = 0; i < this->atom.size(); i++)
+    {
+      if (this->atom[i]->name == " CD " )
+	{
+	  this->atom[i]->skip = false;
+	}
+      else if (this->atom[i]->name == " CE " )
+	{
+	  this->atom[i]->skip = false;
+	}
+      else if (this->atom[i]->name == " NZ " )
+	{
+	  this->atom[i]->skip = false;
+	}
+    }
+}
+
+void AminoAcid::unmarkAltLocAtomsARG()
+{
+  for (int i = 0; i < this->atom.size(); i++)
+    {
+      if (this->atom[i]->name == " CG ")
+	{
+	  this->atom[i]->skip = false;
+	}
+      else if (this->atom[i]->name == " CD ")
+	{
+	  this->atom[i]->skip = false;
+	}
+      else if (this->atom[i]->name == " NE ")
+	{
+	  this->atom[i]->skip = false;
+	}
+      else if (this->atom[i]->name == " CZ ")
+	{
+	  this->atom[i]->skip = false;
+	}
+      else if (this->atom[i]->name == " NH1")
+	{
+	  this->atom[i]->skip = false;
+	}
+      else if (this->atom[i]->name == " NH2")
+	{
+	  this->atom[i]->skip = false;
+	}
+    }
 }
 
 void AminoAcid::unmarkAltLocAtomsASP()
@@ -1720,6 +2097,14 @@ void AminoAcid::unmarkAltLocAtoms()
     {
       unmarkAltLocAtomsPHEorTYR();
     }
+  else if (residue == "LYS")
+    {
+      unmarkAltLocAtomsLYS();
+    }
+  else if (residue == "ARG")
+    {
+      unmarkAltLocAtomsARG();
+    }
   else if(residue == "ASP")
     {
       unmarkAltLocAtomsASP();
@@ -1774,6 +2159,58 @@ string AminoAcid::makeConectPHEorTYR()
   conect += "CONECT" + serials[3] + serials[5] + serials[4] + "                                                 \n";
   conect += "CONECT" + serials[4] + serials[1] + serials[3] + "                                                 \n";
   conect += "CONECT" + serials[5] + serials[2] + serials[3] + "                                                 \n";
+  return conect;
+}
+
+string AminoAcid::makeConectLYS()
+{
+  string serials[2];
+  for (int i = 0; i < this->atom.size(); i++)
+    {
+      if (this->atom[i]->name == " NZ " && !this->atom[i]->skip)
+	{
+	  serials[0] = this->atom[i]->line.substr(6,5);
+	}
+      else if (this->atom[i]->name == " CE " && !this->atom[i]->skip)
+	{
+	  serials[1] = this->atom[i]->line.substr(6,5);
+	}
+    }
+  string conect = "CONECT" + serials[0] + serials[1] + "                                                                \n";
+  return conect;
+}
+
+string AminoAcid::makeConectARG()
+{
+  string serials[5];
+  for (int i = 0; i < this->atom.size(); i++)
+    {
+      if (this->atom[i]->name == " CD " && !this->atom[i]->skip)
+	{
+	  serials[0] = this->atom[i]->line.substr(6,5);
+	}
+      else if (this->atom[i]->name == " NE " && !this->atom[i]->skip)
+	{
+	  serials[1] = this->atom[i]->line.substr(6,5);
+	}
+      else if (this->atom[i]->name == " CZ " && !this->atom[i]->skip)
+	{
+	  serials[2] = this->atom[i]->line.substr(6,5);
+	}
+      else if (this->atom[i]->name == " NH1" && !this->atom[i]->skip)
+	{
+	  serials[3] = this->atom[i]->line.substr(6,5);
+	}
+      else if (this->atom[i]->name == " NH2" && !this->atom[i]->skip)
+	{
+	  serials[4] = this->atom[i]->line.substr(6,5);
+	}
+    }
+  string conect = "CONECT" + serials[0] + serials[1] + "                                                                \n";
+  conect += "CONECT" + serials[1] + serials[0] + serials[2] + "                                                           \n";
+  conect += "CONECT" + serials[2] + serials[1] + serials[3] + serials[4] + "                                                      \n";
+  conect += "CONECT" + serials[3] + serials[2] + "                                                                \n";
+  conect += "CONECT" + serials[4] + serials[2] + "                                                                \n";
   return conect;
 }
 
@@ -1887,12 +2324,19 @@ string AminoAcid::makeConect2POorPO3()
   conect += "CONECT" + serials[3] + serials[0] + "                                                       \n";
   return conect;
 }
-
 string AminoAcid::makeConect()
 {
   if(residue == "PHE" || residue == "TYR")
     {
       return makeConectPHEorTYR();
+    }
+  else if (residue == "LYS")
+    {
+      return makeConectLYS();
+    }
+  else if (residue == "ARG")
+    {
+      return makeConectARG();
     }
   else if(residue == "ASP")
     {
@@ -2006,6 +2450,34 @@ void AminoAcid::printPHEorTYR(FILE* output)
     }
 }
 
+void AminoAcid::printLYS(FILE* output)
+{
+  for(int i=0; i < this->atom.size(); i++)
+    {
+      if((atom[i]->name == " CE " || 
+          atom[i]->name == " NZ ") && !atom[i]->skip)
+        {
+          this->atom[i]->print(output);
+        }
+    }
+}
+
+void AminoAcid::printARG(FILE* output)
+{
+  for(int i=0; i < this->atom.size(); i++)
+    {
+      if((atom[i]->name == " CG " || 
+          atom[i]->name == " CD " || 
+          atom[i]->name == " NE " || 
+          atom[i]->name == " CZ " || 
+          atom[i]->name == " NH1" ||
+          atom[i]->name == " NH2") && !atom[i]->skip)
+        {
+          this->atom[i]->print(output);
+        }
+    }
+}
+
 void AminoAcid::printASP(FILE* output)
 {
   for(int i=0; i < this->atom.size(); i++)
@@ -2039,6 +2511,14 @@ void AminoAcid::printNeededAtoms(FILE* output)
     {
       printPHEorTYR(output);
     }
+  else if (residue == "LYS")
+    {
+      printLYS(output);
+    }
+  else if (residue == "ARG")
+    {
+      printARG(output);
+    }
   else if(residue == "ASP")
     {
       printASP(output);
@@ -2053,6 +2533,23 @@ void AminoAcid::printNeededAtoms(FILE* output)
     }
 }
 
+int AminoAcid::getType(){
+  if((residue == "PHE")){
+     return AATYPE_PI;
+  }
+  if((residue == "GLU") ||
+     (residue == "ASP")){
+     return AATYPE_ANION;
+  }
+  if((residue == "LYS") ||
+     (residue == "ARG")){
+     return AATYPE_CATION;
+  }
+
+  return AATYPE_UNKNOWN;
+
+}
+
 ostream& operator<<(ostream& output, const AminoAcid& p) 
 {
   for(int i=0; i < p.atom.size(); i++)
@@ -2061,3 +2558,4 @@ ostream& operator<<(ostream& output, const AminoAcid& p)
     }
   return output;  // for multiple << operators.
 }
+

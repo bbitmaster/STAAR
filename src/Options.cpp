@@ -53,6 +53,7 @@ Options::Options()
   threshold       = 7.0;
   numLigands      = 0;
   resolution      = 99999.0;
+  triplets = false;
 }
 
 // Intialize options then parse the cmd line arguments
@@ -100,6 +101,7 @@ void printHelp()
   cerr << "                      " << " \"PO4,2HP,PI,2PO,PO3\""                                        << endl;
   cerr << "-c or --resolution    " << "Resolution cut-off.  Will only look at the PDBs with"           << endl;
   cerr << "                      " << " a resolution <= specified value (default: 2 Angstroms)"        << endl;
+  cerr << "-3 or --triplets      " << "Look for Cation-Anion-Pi Triplets (ignores -r flag)"            << endl;
 }
 
 // Return true of cmd line parsing failed, false otherwise
@@ -125,6 +127,7 @@ void Options::parseCmdline( int argc, char **argv )
       {"threshold",     required_argument, 0, 't'},
       {"samechain",     no_argument,       0, 's'},
       {"residues",      required_argument, 0, 'r'},
+      {"triplets",      required_argument, 0, '3'},
       {"ligands",       required_argument, 0, 'l'},
       {"gamess",        required_argument, 0, 'g'},
       {"resolution",    required_argument, 0, 'c'},
@@ -133,7 +136,7 @@ void Options::parseCmdline( int argc, char **argv )
   int option_index;
   bool indir = false;
   // Go through the options and set them to variables
-  while( !( ( c = getopt_long(argc, argv, "hp:o:L:C:e:t:sr:l:g:c:", long_options, &option_index) ) < 0 ) )
+  while( !( ( c = getopt_long(argc, argv, "hp:o:L:C:e:t:sr:l:g:c:3", long_options, &option_index) ) < 0 ) )
     {
     switch(c)
       {
@@ -207,6 +210,13 @@ void Options::parseCmdline( int argc, char **argv )
           this->residue2 = split( temp[1], ',' );
         }
         break;
+
+      case '3':
+        {
+          this->triplets = true;
+        }
+        break;
+
 
       case 'l':
         {
