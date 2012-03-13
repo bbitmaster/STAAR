@@ -117,7 +117,7 @@ void outputINPfile(string input_filename,
                    AminoAcid& aa1h,
                    AminoAcid& aa2h);
 
-void write_output_head(ofstream& out);
+void write_output_head(ofstream& out,bool triplets);
 
 int main(int argc, char* argv[]){
   printHeader();
@@ -160,7 +160,7 @@ int main(int argc, char* argv[]){
           cerr << red << "Error" << reset << ": Failed to open output file," << opts.outputfile << endl;
           return 1;
         }
-      write_output_head(output_file);
+      write_output_head(output_file,opts.triplets);
       return_value = processSinglePDBFile(opts.pdbfile, opts, output_file);
       output_file.close();
     }
@@ -216,13 +216,14 @@ bool processSinglePDBFile(const char* filename,
       //it will search through the combinations: 111 112 113 122 123 133 222 223 233 333
         for(unsigned int i = 0; i < PDBfile.chains.size(); i++)
         {
-          for(unsigned int j = i; j < PDBfile.chains.size(); j++)
-          {
-            for(unsigned int k = j; k < PDBfile.chains.size(); k++)
-            {
+	// in the future we may have the below double for loop go through each chain combination.
+          //for(unsigned int j = i; j < PDBfile.chains.size(); j++)
+         // {
+            //for(unsigned int k = j; k < PDBfile.chains.size(); k++)
+            //{
 		searchTripletInformation(PDBfile,i,i,i,output_file);
-            }
-          }
+            //}
+         // }
         }
         return true;  //end here if we're processing triplets
       }
@@ -311,7 +312,7 @@ bool processPDBList(Options& opts)
     }
 
   // Write the header to output file
-  write_output_head(output_file);
+  write_output_head(output_file,opts.triplets);
 
   string line;
 
@@ -352,7 +353,7 @@ bool processPDBChainList(Options& opts)
     }
 
   // Write the header to the ouput file
-  write_output_head(output_file);
+  write_output_head(output_file,opts.triplets);
 
   string line;
 
@@ -395,7 +396,7 @@ bool processPDBDirectory(Options& opts)
       cerr << red << "Error" << reset << ": Failed to open output file" << endl;
       perror("\t");
     }
-  write_output_head(output_file);
+  write_output_head(output_file,opts.triplets);
 
   // Open the directory for traversal
   if( (directory = opendir( opts.pdbfile )) )
@@ -489,25 +490,23 @@ void searchTripletInformation(PDB & PDBfile,
   Chain* c3 = &(PDBfile.chains[chain3]);
 
   double threshold = 7.0;
-
+        int residueType[3];
   // Go through each AA combination in the chain
   for(unsigned int i = 0; i < c1->aa.size(); i++)
   {
+    residueType[0] = c1->aa[i].getType();
+    if(residueType[0] == AATYPE_UNKNOWN)continue;
+
     for(unsigned int j = i+1; j < c2->aa.size(); j++)
     {
+      residueType[1] = c2->aa[j].getType();
+      if(residueType[1] == AATYPE_UNKNOWN)continue;
+
       for(unsigned int k = j+1; k < c3->aa.size(); k++)
       {
-        int residueType[3];
-
-        residueType[0] = c1->aa[i].getType();
-	if(residueType[0] == AATYPE_UNKNOWN)continue;
-
-        residueType[1] = c2->aa[j].getType();
-	if(residueType[1] == AATYPE_UNKNOWN)continue;
 
         residueType[2] = c3->aa[k].getType();
 	if(residueType[2] == AATYPE_UNKNOWN)continue;
-
 
         int aaCount[AATYPE_MAX]; //count each of the amino acid types, accumulate them here
 
@@ -565,9 +564,28 @@ void searchTripletInformation(PDB & PDBfile,
             continue;
           }
         }
-
-        cout << purple << "triplet within distance found " << c1->aa[i].residue << " " << c2->aa[j].residue << " " << c3->aa[k].residue << " "
+#ifdef DEBUG
+         cout << purple << "triplet within distance found " << c1->aa[i].residue << " " << c2->aa[j].residue << " " << c3->aa[k].residue << " "
              << " distance1 " << dist[0] << " distance2 " << dist[1] << " distance3 " << dist[2] << endl;
+#endif
+
+         output_file << c1->aa[i].residue                          << ","
+                      << c2->aa[j].residue                  << ","
+                      << c3->aa[k].residue                  << ","
+                      << dist[0]                            << ","
+                      << dist[1]                            << ","
+                      << dist[2]                            << ","
+                      << c1->aa[i].atom[0]->resSeq          << ","
+                      << c2->aa[j].atom[0]->resSeq          << ","
+                      << c3->aa[k].atom[0]->resSeq          << ","
+                      << PDBfile.filename                   << ","
+                      << PDBfile.resolution                 << ","
+                      << PDBfile.model_number               << ","
+                      << c1->aa[i].atom[0]->chainID         << ","
+                      << c2->aa[j].atom[0]->chainID         << ","
+                      << c3->aa[k].atom[0]->chainID         << ","
+                      << endl;
+
       }
     }
   }
@@ -892,7 +910,14 @@ void outputINPfile(string input_filename, char* filename, AminoAcid& aa1h, Amino
   inpout.close();
 }
 
-void write_output_head(ofstream& out)
+void write_output_head(ofstream& out,bool triplets)
 {
+
+if(triplets){
+	out << "#res1,res2,res3,distance1to2,distance1to3,distance2to3,loc1,loc2,loc3,pdbID,resolution,model,chain1,chain2,chain3" << endl;
+
+}
+else{
   out <<"#res1,res2,dist,angle,angleP,angle1,loc1,loc2,code,pdbID,resolution,model,gamessinput,chain1,chain2,center1,,,center2,,,center1h,,,center2h,,,dist,distOxy,distOxy2,angleh,angleOxy,angleOxy2,gamessoutput,electrostatic(Hartree),electrostatic(kcal/mol),exchangerep(Hartree),exchangerep(kcal/mole),polarization(Hartree),polarization(kcal/mole),chargexfer(Hartree),chargexfer(kcal/mol),highordercoup(Hartree),highordercoup(kcal/mole),totalinter(Hartree),totalinter(kcal/mole)" << endl;
+}
 }

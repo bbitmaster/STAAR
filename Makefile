@@ -6,10 +6,10 @@ LINK := $(CPP)
 
 MODULES := src include
 
-#CFLAGS := -O3
-#CPPFLAGS := -O3
-CFLAGS := -O0 -g
-CPPFLAGS := -O0 -g
+CFLAGS := -O3
+CPPFLAGS := -O3
+#CFLAGS := -O0 -g
+#CPPFLAGS := -O0 -g
 LFLAGS := -g
 #LFLAGS := -O3
 
