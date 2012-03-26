@@ -216,14 +216,20 @@ bool processSinglePDBFile(const char* filename,
       //it will search through the combinations: 111 112 113 122 123 133 222 223 233 333
         for(unsigned int i = 0; i < PDBfile.chains.size(); i++)
         {
+
+	if(opts.sameChain){
+          searchTripletInformation(PDBfile,i,i,i,output_file);
+          return true;
+	}
+
 	// in the future we may have the below double for loop go through each chain combination.
-          //for(unsigned int j = i; j < PDBfile.chains.size(); j++)
-         // {
-            //for(unsigned int k = j; k < PDBfile.chains.size(); k++)
-            //{
-		searchTripletInformation(PDBfile,i,i,i,output_file);
-            //}
-         // }
+          for(unsigned int j = i; j < PDBfile.chains.size(); j++)
+          {
+            for(unsigned int k = j; k < PDBfile.chains.size(); k++)
+            {
+		searchTripletInformation(PDBfile,i,j,k,output_file);
+            }
+          }
         }
         return true;  //end here if we're processing triplets
       }
@@ -497,12 +503,21 @@ void searchTripletInformation(PDB & PDBfile,
     residueType[0] = c1->aa[i].getType();
     if(residueType[0] == AATYPE_UNKNOWN)continue;
 
-    for(unsigned int j = i+1; j < c2->aa.size(); j++)
+    //if we are searching the same chain then we do not want to go over the same amino acid combination twice.
+    unsigned int j;
+    if(chain1 == chain2)j = i+1;
+    else j=0;
+
+    for(; j < c2->aa.size(); j++)
     {
       residueType[1] = c2->aa[j].getType();
       if(residueType[1] == AATYPE_UNKNOWN)continue;
 
-      for(unsigned int k = j+1; k < c3->aa.size(); k++)
+      unsigned int k;
+      if(chain2 == chain3)k = j+1;
+      else k = 0;
+
+      for(; k < c3->aa.size(); k++)
       {
 
         residueType[2] = c3->aa[k].getType();
