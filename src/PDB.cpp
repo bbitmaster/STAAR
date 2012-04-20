@@ -594,7 +594,7 @@ void PDB::getPair(int& resSeq1,
           // If the benzene was naturally first,
           // it is in the first chain while the formate
           // is in the second chain
-          if(resSeq1 <= resSeq2)
+          if(this->chains[0].aa[0].residue == "PHE")
             {
               *r1 = this->chains[0].aa[0];
               *r2 = this->chains[1].aa[0];
@@ -612,7 +612,7 @@ void PDB::getPair(int& resSeq1,
           // If the benzene was naturally first,
           // it is in the first chain while the formate
           // is in the second chain
-          if(resSeq1 <= resSeq2)
+          if(this->chains[0].aa[0].residue == "PHE")
             {
               *r1 = this->chains[0].aa[0];
               *r2 = this->chains[0].aa[1];

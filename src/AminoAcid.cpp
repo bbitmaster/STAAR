@@ -149,7 +149,7 @@ void AminoAcid::centerPHEorTYR()
     {
       skip = true;
 #ifndef DISABLE_WARNING
-      cout << cyan << "WARNING" << reset << ": Could not find all atoms in the TRP ring at "
+      cout << cyan << "WARNING" << reset << ": Could not find all atoms in the PHE ring at "
            << atom[0]->resSeq << endl;
 #endif
       return;
@@ -1585,6 +1585,7 @@ void AminoAcid::calculateAnglesPreHydrogens(AminoAcid aa2,
 
 bool AminoAcid::calculateDistancesAndAnglesPostHydrogens(AminoAcid aa2,
                                                          Coordinates closestOxygen,
+                                                         float threshold,
                                                          float* dist,
                                                          float* distOxy,
                                                          float* distOxy2,
@@ -1620,6 +1621,8 @@ bool AminoAcid::calculateDistancesAndAnglesPostHydrogens(AminoAcid aa2,
   float perpnorm = perp.norm();
   float distFromMassToChg = distance.norm();
   float denom = perpnorm * distFromMassToChg;
+  
+  if(distFromMassToChg > threshold) return false;
 
   if(denom == 0)
     {
@@ -1691,6 +1694,7 @@ bool AminoAcid::calculateDistancesAndAnglesPostHydrogens(AminoAcid aa2,
   *angleOxy  = fabs( 90 - acos(uOxy)  * 180/3.14159 );
   *angleOxy2 = fabs( 90 - acos(uOxy2) * 180/3.14159 );
 
+  return true;
 }
 
 void AminoAcid::markAltLocAtomsPHEorTYR(int index)

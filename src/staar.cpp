@@ -519,7 +519,12 @@ void searchTripletInformation(PDB & PDBfile,
 
       for(; k < c3->aa.size(); k++)
       {
-
+        float angle[2];
+        float angle1[2];
+        float angleP[2];
+	//init these to -1, so -1 will be output for cases where this isn't calculated.
+	angle[0] = angle[1] = angle1[0] = angle1[1] = angleP[0] = angleP[1] = -1.0;
+        
         residueType[2] = c3->aa[k].getType();
 	if(residueType[2] == AATYPE_UNKNOWN)continue;
 
@@ -534,8 +539,7 @@ void searchTripletInformation(PDB & PDBfile,
           continue;
         }
 
-        unsigned int closestDist_index1 = 0;
-        unsigned int closestDist_index2 = 0;
+        unsigned int closestDist_index[6] = {0};
 
 	c1->aa[i].calculateCenter(false);
 	c2->aa[j].calculateCenter(false);
@@ -543,9 +547,9 @@ void searchTripletInformation(PDB & PDBfile,
 
         //compute all 3 distances
         double dist[3];
-	dist[0] = findClosestDistance(c1->aa[i],c2->aa[j],FLT_MAX,&closestDist_index1,&closestDist_index2);
-	dist[1] = findClosestDistance(c1->aa[i],c3->aa[k],FLT_MAX,&closestDist_index1,&closestDist_index2);
-	dist[2] = findClosestDistance(c2->aa[j],c3->aa[k],FLT_MAX,&closestDist_index1,&closestDist_index2);
+	dist[0] = findClosestDistance(c1->aa[i],c2->aa[j],FLT_MAX,&closestDist_index[0],&closestDist_index[1]);
+	dist[1] = findClosestDistance(c1->aa[i],c3->aa[k],FLT_MAX,&closestDist_index[2],&closestDist_index[3]);
+	dist[2] = findClosestDistance(c2->aa[j],c3->aa[k],FLT_MAX,&closestDist_index[4],&closestDist_index[5]);
 
         //cout << green << "triplet found: " << c1->aa[i].residue << " " << c2->aa[j].residue << " " << c3->aa[k].residue
          //    << " distance1 " << dist[0] << " distance2 " << dist[1] << " distance3 " << dist[2] << endl;
@@ -557,14 +561,26 @@ void searchTripletInformation(PDB & PDBfile,
           //we end the loop
           if(residueType[0] == AATYPE_PI){
             if(dist[0] > threshold || dist[1] > threshold)continue;
+            //position 1 is a pi, we want angles from 1 to 2 and 1 to 3
+            c1->aa[i].calculateAnglesPreHydrogens(c2->aa[j],closestDist_index[0],closestDist_index[1],&angle[0],&angle1[0],&angleP[0]);
+            c1->aa[i].calculateAnglesPreHydrogens(c3->aa[k],closestDist_index[2],closestDist_index[3],&angle[1],&angle1[1],&angleP[1]);
           }
 
           if(residueType[1] == AATYPE_PI){
             if(dist[0] > threshold || dist[2] > threshold)continue;
+            //position 2 is a pi, we want angles from 2 to 1 and 2 to 3
+
+            //carefully note these indices for closestDist_index[]. the distance from 1 TO 2 was calculated, not from 2 TO 1. The
+            //the indices have to be in reverse order to account for this.
+            c2->aa[j].calculateAnglesPreHydrogens(c1->aa[i],closestDist_index[1],closestDist_index[0],&angle[0],&angle1[0],&angleP[0]);
+            c2->aa[j].calculateAnglesPreHydrogens(c3->aa[k],closestDist_index[4],closestDist_index[5],&angle[1],&angle1[1],&angleP[1]);
           }
 
           if(residueType[2] == AATYPE_PI){
             if(dist[1] > threshold || dist[2] > threshold)continue;
+            //position 3 is a pi, we want angles from 3 to 1 and 3 to 2
+            c3->aa[k].calculateAnglesPreHydrogens(c1->aa[i],closestDist_index[3],closestDist_index[2],&angle[0],&angle1[0],&angleP[0]);
+            c3->aa[k].calculateAnglesPreHydrogens(c2->aa[j],closestDist_index[5],closestDist_index[4],&angle[1],&angle1[1],&angle[1]);
           }
         }
 
@@ -599,6 +615,12 @@ void searchTripletInformation(PDB & PDBfile,
                       << c1->aa[i].atom[0]->chainID         << ","
                       << c2->aa[j].atom[0]->chainID         << ","
                       << c3->aa[k].atom[0]->chainID         << ","
+                      << angle[0]                           << ","
+                      << angle1[0]                          << ","
+                      << angleP[0]                          << ","
+                      << angle[1]                           << ","
+                      << angle1[1]                          << ","
+                      << angleP[1]                          << ","
                       << endl;
 
       }
@@ -731,6 +753,13 @@ void findBestInteraction( AminoAcid& aa1,
 
       if( aa2h.skip == true || aa1h.skip == true )
         {
+          if(code2 == 'M')
+            {
+              // Now we are going to undo the alt loc markings
+              aa1.unmarkAltLocAtoms();
+              aa2.unmarkAltLocAtoms();
+            }
+
           return;
         }
 
@@ -745,14 +774,29 @@ void findBestInteraction( AminoAcid& aa1,
       float dist;
       float distOxy;
       float distOxy2;
-      aa1h.calculateDistancesAndAnglesPostHydrogens(aa2h,
-                                                    aa2.center[closestDist_index2],
-                                                    &dist,
-                                                    &distOxy,
-                                                    &distOxy2,
-                                                    &angleh,
-                                                    &angleOxy,
-                                                    &angleOxy2);
+
+      if(!aa1h.calculateDistancesAndAnglesPostHydrogens(aa2h,
+                                                        aa2.center[closestDist_index2],
+                                                        threshold,
+                                                        &dist,
+                                                        &distOxy,
+                                                        &distOxy2,
+                                                        &angleh,
+                                                        &angleOxy,
+                                                        &angleOxy2))
+        {
+          // Clean up
+          if(code2 == 'M')
+            {
+              // Now we are going to undo the alt loc markings
+              aa1.unmarkAltLocAtoms();
+              aa2.unmarkAltLocAtoms();
+            }
+
+          return;
+        }
+
+     
 
       // The following is pretty hackish.  For the time being since we don't
       // have an agreement on how to deal with the PO4 ligands completely, 

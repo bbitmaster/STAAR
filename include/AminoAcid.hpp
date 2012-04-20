@@ -166,6 +166,7 @@ public:
                                    float* angleP);
   bool calculateDistancesAndAnglesPostHydrogens(AminoAcid aa2,
                                                 Coordinates closestOxygen,
+                                                float threshold,
                                                 float* dist,
                                                 float* distOxy,
                                                 float* distOxy2,
