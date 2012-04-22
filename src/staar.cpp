@@ -765,7 +765,7 @@ string buildKeyString(PDB & PDBfile,
                       AminoAcid &aa1,
                       AminoAcid &aa2){
   ostringstream keystr;
-  keystr << aa1.residue << "," << aa1.atom[0]->resSeq << "," << aa1.atom[0]->chainID
+  keystr << aa1.residue << "," << aa1.atom[0]->resSeq << "," << aa1.atom[0]->chainID << ","
          << aa2.residue << "," << aa2.atom[0]->resSeq << "," << aa2.atom[0]->chainID
          << "," << PDBfile.model_number;
   return keystr.str();
