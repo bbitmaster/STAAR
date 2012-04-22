@@ -645,7 +645,7 @@ void searchTripletInformation(PDB & PDBfile,
             keystr = buildKeyString(PDBfile,c1->aa[i],c2->aa[j]);
             //insert a '0' if this key isn't in the map. If it is already in the map, then do nothing.
             pairmapit = pairmap.find(keystr);
-            if(pairmapit != pairmap.end()){
+            if(pairmapit == pairmap.end()){
               pairmap[keystr] = 0;
             }
           }
@@ -653,7 +653,7 @@ void searchTripletInformation(PDB & PDBfile,
           if(dist[1] < 7.0){
             keystr = buildKeyString(PDBfile,c1->aa[i],c3->aa[k]);
             pairmapit = pairmap.find(keystr);
-            if(pairmapit != pairmap.end()){
+            if(pairmapit == pairmap.end()){
               pairmap[keystr] = 0;
             }
           }
@@ -661,7 +661,7 @@ void searchTripletInformation(PDB & PDBfile,
           if(dist[2] < 7.0){
             keystr = buildKeyString(PDBfile,c2->aa[j],c3->aa[k]);
             pairmapit = pairmap.find(keystr);
-            if(pairmapit != pairmap.end()){
+            if(pairmapit == pairmap.end()){
               pairmap[keystr] = 0;
             }
           }
@@ -767,7 +767,7 @@ string buildKeyString(PDB & PDBfile,
   ostringstream keystr;
   keystr << aa1.residue << "," << aa1.atom[0]->resSeq << "," << aa1.atom[0]->chainID << ","
          << aa2.residue << "," << aa2.atom[0]->resSeq << "," << aa2.atom[0]->chainID
-         << "," << PDBfile.model_number;
+         << PDBfile.filename << "," << PDBfile.model_number;
   return keystr.str();
 }
 
