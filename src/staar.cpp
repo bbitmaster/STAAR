@@ -44,6 +44,10 @@
 #include <fstream>
 #include <float.h>
 
+#include <map>
+#include <utility>
+#include <sstream>
+
 #include "Utils.hpp"
 #include "Options.hpp"
 #include "PDB.hpp"
@@ -59,6 +63,7 @@
 bool processSinglePDBFile(const char* filename,
                           Options& opts,
                           ofstream& output_file,
+                          ofstream& pairlistfile,
                           const char* chains=NULL);
 
 // Read PDB names from a list and parses them from the specified directory
@@ -81,10 +86,16 @@ void searchChainInformation(PDB & PDBfile,
                             ofstream& output_file);
 
 void searchTripletInformation(PDB & PDBfile,
+                            Options& opts,
                             unsigned int chain1,
                             unsigned int chain2,
                             unsigned int chain3,
-                            ofstream& output_file);
+                            ofstream& output_file,
+                            ofstream& pairlistfile);
+
+string buildKeyString(PDB & PDBfile,
+                      AminoAcid &aa1,
+                      AminoAcid &aa2);
 
 void searchLigandsInformation(PDB & PDBfile,
                               Residue & ligand,
@@ -161,7 +172,22 @@ int main(int argc, char* argv[]){
           return 1;
         }
       write_output_head(output_file,opts.triplets);
-      return_value = processSinglePDBFile(opts.pdbfile, opts, output_file);
+      //open the pair list file (if we're searching for triplets, and if the option to log pairs is specified
+      ofstream pairlistfile;
+
+      if(opts.triplets && opts.pairlistfile != NULL){
+        pairlistfile.open(opts.pairlistfile);
+        if( !pairlistfile)
+          {
+            cerr << red << "Error" << reset << ": Failed to open pairfile output file" << endl;
+            perror("\t");
+          }
+      }
+
+      return_value = processSinglePDBFile(opts.pdbfile, opts, output_file,pairlistfile);
+      if(opts.triplets && opts.pairlistfile != NULL){
+        pairlistfile.close();
+      }
       output_file.close();
     }
 
@@ -172,6 +198,7 @@ int main(int argc, char* argv[]){
 bool processSinglePDBFile(const char* filename,
                           Options& opts,
                           ofstream& output_file,
+                          ofstream& pairlistfile,
                           const char* chains)
 {
   int numRes1 = opts.residue1.size();
@@ -218,7 +245,7 @@ bool processSinglePDBFile(const char* filename,
         {
 
 	if(opts.sameChain){
-          searchTripletInformation(PDBfile,i,i,i,output_file);
+          searchTripletInformation(PDBfile,opts,i,i,i,output_file,pairlistfile);
           return true;
 	}
 
@@ -227,7 +254,7 @@ bool processSinglePDBFile(const char* filename,
           {
             for(unsigned int k = j; k < PDBfile.chains.size(); k++)
             {
-		searchTripletInformation(PDBfile,i,j,k,output_file);
+		searchTripletInformation(PDBfile,opts,i,j,k,output_file,pairlistfile);
             }
           }
         }
@@ -322,6 +349,18 @@ bool processPDBList(Options& opts)
 
   string line;
 
+  //open the pair list file (if we're searching for triplets, and if the option to log pairs is specified
+  ofstream pairlistfile;
+
+  if(opts.triplets && opts.pairlistfile != NULL){
+    pairlistfile.open(opts.pairlistfile);
+    if( !pairlistfile)
+      {
+        cerr << red << "Error" << reset << ": Failed to open pairfile output file" << endl;
+        perror("\t");
+      }
+  }
+
   // Go through each line of the PDB list file
   while(getline(listfp, line))
     {
@@ -331,11 +370,16 @@ bool processPDBList(Options& opts)
       cout << purple << line << opts.extension << endl;
 
       // Process the PDB file
-      processSinglePDBFile(filename.c_str(), opts, output_file);
+      processSinglePDBFile(filename.c_str(), opts, output_file, pairlistfile);
     }
+
   cout << endl;
   output_file.close();
   listfp.close();
+  if(opts.triplets && opts.pairlistfile != NULL){
+    pairlistfile.close();
+  }
+
   return true;
 }
 
@@ -363,6 +407,18 @@ bool processPDBChainList(Options& opts)
 
   string line;
 
+  //open the pair list file (if we're searching for triplets, and if the option to log pairs is specified
+  ofstream pairlistfile;
+
+  if(opts.triplets && opts.pairlistfile != NULL){
+    pairlistfile.open(opts.pairlistfile);
+    if( !pairlistfile)
+      {
+        cerr << red << "Error" << reset << ": Failed to open pairfile output file" << endl;
+        perror("\t");
+      }
+  }
+
   // Go through each line of the list file
   while(getline(listfp, line))
     {
@@ -382,11 +438,15 @@ bool processPDBChainList(Options& opts)
       cout << purple << fields[0] << opts.extension << endl;
 
       // Process the file
-      processSinglePDBFile(filename.c_str(), opts, output_file, fields[1].c_str());
+      processSinglePDBFile(filename.c_str(), opts, output_file,pairlistfile, fields[1].c_str());
     }
   cout << endl;
   output_file.close();
   listfp.close();
+  if(opts.triplets && opts.pairlistfile != NULL){
+    pairlistfile.close();
+  }
+
   return true;
 }
 
@@ -403,6 +463,18 @@ bool processPDBDirectory(Options& opts)
       perror("\t");
     }
   write_output_head(output_file,opts.triplets);
+
+  //open the pair list file (if we're searching for triplets, and if the option to log pairs is specified
+  ofstream pairlistfile;
+
+  if(opts.triplets && opts.pairlistfile != NULL){
+    pairlistfile.open(opts.pairlistfile);
+    if( !pairlistfile)
+      {
+        cerr << red << "Error" << reset << ": Failed to open pairfile output file" << endl;
+        perror("\t");
+      }
+  }
 
   // Open the directory for traversal
   if( (directory = opendir( opts.pdbfile )) )
@@ -421,7 +493,7 @@ bool processPDBDirectory(Options& opts)
               sprintf(fullFilePath, "%s/%s", opts.pdbfile, filename->d_name);
 
               // perform some work on the current file
-              processSinglePDBFile(fullFilePath, opts, output_file);
+              processSinglePDBFile(fullFilePath, opts, output_file,pairlistfile);
             }
         }
     }
@@ -432,6 +504,10 @@ bool processPDBDirectory(Options& opts)
     }
   closedir(directory);
   output_file.close();
+
+  if(opts.triplets && opts.pairlistfile != NULL){
+    pairlistfile.close();
+  }
   return true;
 }
 
@@ -486,14 +562,19 @@ void searchChainInformation(PDB & PDBfile,
 }
 
 void searchTripletInformation(PDB & PDBfile,
+                            Options& opts,
                             unsigned int chain1,
                             unsigned int chain2,
                             unsigned int chain3,
-                            ofstream& output_file)
+                            ofstream& output_file,
+                            ofstream& pairlistfile)
 {
   Chain* c1 = &(PDBfile.chains[chain1]);
   Chain* c2 = &(PDBfile.chains[chain2]);
   Chain* c3 = &(PDBfile.chains[chain3]);
+
+  map<string,int> pairmap;
+  map<string,int>::iterator pairmapit;
 
   double threshold = 7.0;
         int residueType[3];
@@ -557,6 +638,34 @@ void searchTripletInformation(PDB & PDBfile,
 	//There are two cases for computing distances. If we have 1 Pi, we want the min distance from that Pi to the Anion and Cation
 	//If we have 2 or more Pi's we just want the minimum 2 out of 3 distances
 	if(aaCount[AATYPE_PI] == 1){
+          string keystr;
+
+          //at this point we know these pairs may or may not be in a triplet. 
+          if(dist[0] < 7.0){
+            keystr = buildKeyString(PDBfile,c1->aa[i],c2->aa[j]);
+            //insert a '0' if this key isn't in the map. If it is already in the map, then do nothing.
+            pairmapit = pairmap.find(keystr);
+            if(pairmapit != pairmap.end()){
+              pairmap[keystr] = 0;
+            }
+          }
+
+          if(dist[1] < 7.0){
+            keystr = buildKeyString(PDBfile,c1->aa[i],c3->aa[k]);
+            pairmapit = pairmap.find(keystr);
+            if(pairmapit != pairmap.end()){
+              pairmap[keystr] = 0;
+            }
+          }
+
+          if(dist[2] < 7.0){
+            keystr = buildKeyString(PDBfile,c2->aa[j],c3->aa[k]);
+            pairmapit = pairmap.find(keystr);
+            if(pairmapit != pairmap.end()){
+              pairmap[keystr] = 0;
+            }
+          }
+
           //the below code checks to see if the distance from the Pi to the anion's/cation's is above the threshold. If it is
           //we end the loop
           if(residueType[0] == AATYPE_PI){
@@ -581,6 +690,23 @@ void searchTripletInformation(PDB & PDBfile,
             //position 3 is a pi, we want angles from 3 to 1 and 3 to 2
             c3->aa[k].calculateAnglesPreHydrogens(c1->aa[i],closestDist_index[3],closestDist_index[2],&angle[0],&angle1[0],&angleP[0]);
             c3->aa[k].calculateAnglesPreHydrogens(c2->aa[j],closestDist_index[5],closestDist_index[4],&angle[1],&angle1[1],&angle[1]);
+          }
+
+          //At this point if we KNOW we have a triplet. We increment the count for all pairs involved in this triplet to indicate
+          //that they are involved in another triplet.
+          if(dist[0] < 7.0){
+            keystr = buildKeyString(PDBfile,c1->aa[i],c2->aa[j]);
+            pairmap[keystr] = (pairmap[keystr] + 1);
+          }
+
+          if(dist[1] < 7.0){
+            keystr = buildKeyString(PDBfile,c1->aa[i],c3->aa[k]);
+            pairmap[keystr] = (pairmap[keystr] + 1);
+          }
+
+          if(dist[2] < 7.0){
+            keystr = buildKeyString(PDBfile,c2->aa[j],c3->aa[k]);
+            pairmap[keystr] = (pairmap[keystr] + 1);
           }
         }
 
@@ -623,10 +749,28 @@ void searchTripletInformation(PDB & PDBfile,
                       << angleP[1]                          << ","
                       << endl;
 
+         if(opts.pairlistfile != NULL){
+           for(pairmapit=pairmap.begin(); pairmapit!=pairmap.end(); ++pairmapit)
+           {
+             pairlistfile << (*pairmapit).first << "," << (*pairmapit).second << endl;
+           }
+         }
+          
       }
     }
   }
 }
+
+string buildKeyString(PDB & PDBfile,
+                      AminoAcid &aa1,
+                      AminoAcid &aa2){
+  ostringstream keystr;
+  keystr << aa1.residue << "," << aa1.atom[0]->resSeq << "," << aa1.atom[0]->chainID
+         << aa2.residue << "," << aa2.atom[0]->resSeq << "," << aa2.atom[0]->chainID
+         << "," << PDBfile.model_number;
+  return keystr.str();
+}
+
 
 void searchLigandsInformation(PDB & PDBfile,
                               Residue & ligand,

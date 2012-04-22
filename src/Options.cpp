@@ -44,6 +44,7 @@ Options::Options()
   center          = false;
   pdbfile         = NULL;
   outputfile      = NULL;
+  pairlistfile    = NULL;
   failure         = false;
   sameChain       = false;
   gamessfolder    = NULL;
@@ -62,6 +63,7 @@ Options::Options( int argc, char **argv )
   center          = false;
   pdbfile         = NULL;
   outputfile      = NULL;
+  pairlistfile    = NULL;
   failure         = false;
   sameChain       = false;
   threshold       = 7.0;
@@ -84,6 +86,7 @@ void printHelp()
   cerr << "-h or --help          " << "Displays this message"                                          << endl;
   cerr << "-p or --pdbdir        " << "Specifies the folder for PDB files"                             << endl;
   cerr << "-o or --out           " << "Specifies the output file"                                      << endl;
+  cerr << "-P or --pairout       " << "Specifies the output file for the list of pairs in triplets"    << endl;
   cerr << "-L or --pdblist       " << "File containing a list of PDBs to use. -p must be a directory." << endl;
   cerr << "-C or --pdbchainlist  " << "Like -L but points to list that specifies chains to look in."   << endl;
   cerr << "-e or --ext           " << "Specifies extension of files in -L PDB list"                    << endl;
@@ -121,6 +124,7 @@ void Options::parseCmdline( int argc, char **argv )
       {"help",          required_argument, 0, 'h'},
       {"pdbdir",        required_argument, 0, 'p'},
       {"out",           required_argument, 0, 'o'}, 
+      {"pairout",       required_argument, 0, 'P'},
       {"pdblist",       required_argument, 0, 'L'},
       {"pdbchainlist",  required_argument, 0, 'C'},
       {"ext",           required_argument, 0, 'e'},
@@ -136,7 +140,7 @@ void Options::parseCmdline( int argc, char **argv )
   int option_index;
   bool indir = false;
   // Go through the options and set them to variables
-  while( !( ( c = getopt_long(argc, argv, "hp:o:L:C:e:t:sr:l:g:c:3", long_options, &option_index) ) < 0 ) )
+  while( !( ( c = getopt_long(argc, argv, "hp:o:P:L:C:e:t:sr:l:g:c:3", long_options, &option_index) ) < 0 ) )
     {
     switch(c)
       {
@@ -161,6 +165,21 @@ void Options::parseCmdline( int argc, char **argv )
         else
           {
             cerr << red << "Error" << reset << ": Output file must be a file, not a directory" << endl;
+            printHelp();
+            exit(1);
+          }
+        break;
+
+      case 'P':
+        // the user is wanting to set the pair output file, but we need to make
+        // sure that is ia a file and not a directory
+        if( !isDirectory(optarg) )
+          {
+            this->pairlistfile = optarg;
+          }
+        else
+          {
+            cerr << red << "Error" << reset << ": Pair Output file must be a file, not a directory" << endl;
             printHelp();
             exit(1);
           }

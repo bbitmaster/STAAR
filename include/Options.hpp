@@ -58,6 +58,7 @@ public:
   bool   center;                // Flag indicating to perform center calculations
   char  *pdbfile;               // Directory that the PDB files are stored
   char  *outputfile;            // File that the results are written to
+  char  *pairlistfile;          // File that the results of triplet pairs is written to
   float  threshold;             // Holds the cutoff for what is considered a close
                                 // distance between residues
   bool sameChain;               // Flag indicating whether to look only on same 
