@@ -49,6 +49,7 @@
 #include "Seqres.hpp"
 #include "Utils.hpp"
 #include "Chain.hpp"
+#include "Geometry.hpp"
 
 
 static char INPheader[] = \
@@ -119,8 +120,9 @@ public:
 
 #ifndef NO_BABEL
   // Calls Babel to add the hydrogens and inputs them into the PDB
-  void addHydrogensToPair(AminoAcid& a, AminoAcid& b);
+  void addHydrogensToPair(AminoAcid& a, AminoAcid& b, int cd1, int cd2);
 #endif
+  bool addHydrogenToLYS (AminoAcid& aa);
 
   // Organizes the data read from parsePDB into chains
   void populateChains(bool center);

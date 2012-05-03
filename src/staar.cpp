@@ -810,8 +810,10 @@ double findClosestDistance(AminoAcid& aa1,
   // for the closet pair
   for( unsigned int i = 0; i < aa1.center.size(); i++ )
     {
+      if(aa1.center[i].skip) continue;
       for( unsigned int j = 0; j < aa2.center.size(); j++ )
         {
+          if(aa2.center[i].skip) continue;
           dist = aa1.center[i].distance(aa2.center[j]);
           // flag it if is the closest and within the threshold
           if( dist < closest && dist < threshold )
@@ -869,9 +871,6 @@ void findBestInteraction( AminoAcid& aa1,
       //if( aa1.center.size() > 1 || aa2.center.size() > 1 )
       if( aa1.altLoc || aa2.altLoc )
         {
-          // Mark the alt loc atoms that aren't important
-          aa1.markAltLocAtoms(closestDist_index1);
-          aa2.markAltLocAtoms(closestDist_index2);
           code2 = 'M';
         }
 
@@ -881,12 +880,12 @@ void findBestInteraction( AminoAcid& aa1,
       pairWithHydrogen.setResiduesToFind(PDBfile.residue1, PDBfile.residue2);
       pairWithHydrogen.setLigandsToFind(PDBfile.ligandsToFind);
       
+
       // Add the hydrogens
-      pairWithHydrogen.addHydrogensToPair(aa1,aa2);
+      pairWithHydrogen.addHydrogensToPair(aa1,aa2,closestDist_index1,closestDist_index2);
 
       // Set the filename
       pairWithHydrogen.filename = PDBfile.filename;
-
 
       // Separate the pair into 2 variables
       pairWithHydrogen.getPair(aa1.atom[0]->resSeq,
@@ -907,14 +906,6 @@ void findBestInteraction( AminoAcid& aa1,
           return;
         }
 
-      // calculate the angles of this interaction
-      aa1.calculateAnglesPreHydrogens(aa2,
-                                      closestDist_index1,
-                                      closestDist_index2,
-                                      &angle,
-                                      &angle1,
-                                      &angleP);
-
       float dist;
       float distOxy;
       float distOxy2;
@@ -929,18 +920,16 @@ void findBestInteraction( AminoAcid& aa1,
                                                         &angleOxy,
                                                         &angleOxy2))
         {
-          // Clean up
-          if(code2 == 'M')
-            {
-              // Now we are going to undo the alt loc markings
-              aa1.unmarkAltLocAtoms();
-              aa2.unmarkAltLocAtoms();
-            }
-
           return;
         }
 
-     
+      // calculate the angles of this interaction
+      aa1.calculateAnglesPreHydrogens(aa2,
+                                      closestDist_index1,
+                                      closestDist_index2,
+                                      &angle,
+                                      &angle1,
+                                      &angleP);
 
       // The following is pretty hackish.  For the time being since we don't
       // have an agreement on how to deal with the PO4 ligands completely, 
@@ -1042,12 +1031,6 @@ void findBestInteraction( AminoAcid& aa1,
                       << angleOxy2                          << endl;
         }
 
-      if(code2 == 'M')
-        {
-          // Now we are going to undo the alt loc markings
-          aa1.unmarkAltLocAtoms();
-          aa2.unmarkAltLocAtoms();
-        }
     }
 }
 

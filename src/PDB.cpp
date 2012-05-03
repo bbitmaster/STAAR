@@ -48,6 +48,7 @@
 #include "Utils.hpp"
 #include "../gzstream/gzstream.h"
 #include "CoutColors.hpp"
+#include "Geometry.hpp"
 
 #ifndef NO_BABEL
 using namespace OpenBabel;
@@ -235,11 +236,6 @@ void PDB::parsePDBstream(istream& PDBfile, float resolution)
               models.push_back(model);
               model.clear();
               modelnum++;
-              //models.push_back(model);
-              //model.clear();
-              //failure = true;
-              //failflag = MULTIPLE_MODELS_SKIP;
-              //continue;
             }
         }
 
@@ -274,16 +270,6 @@ void PDB::parsePDBstream(istream& PDBfile, float resolution)
             }
           continue;
         }
-
-      // Parse the line if we are on a SEQRES line
-      // found = line.find("SEQRES");
-      // if( found == 0 )
-      //   {
-      //     Seqres s(line);
-      //     failure = s.fail();
-      //     seqres.push_back(s);
-      //     continue;
-      //   }
 
       // Parse the line if we are on an ATOM line
       found = line.find("ATOM");
@@ -336,7 +322,7 @@ void PDB::parsePDBstream(istream& PDBfile, float resolution)
 #ifndef NO_BABEL
 // This function will call the Babel library to add 
 // hydrogens to the residues
-void PDB::addHydrogensToPair(AminoAcid& a, AminoAcid& b)
+void PDB::addHydrogensToPair(AminoAcid& a, AminoAcid& b, int cd1, int cd2)
 {
   OBMol mol;
   string addedH;
@@ -364,26 +350,32 @@ void PDB::addHydrogensToPair(AminoAcid& a, AminoAcid& b)
       }
   }
 
-
   // Now, let's pack up the information into a string
   string packedFile="";
-  for(unsigned int i=0; i < a.atom.size(); i++)
+  for(unsigned int i=0; i < a.altlocs[cd1].size(); i++)
     {
-      if( !a.atom[i]->skip )
+      if( !a.altlocs[cd1][i]->skip )
         {
-          packedFile += a.atom[i]->line + "\n";
+          packedFile += a.altlocs[cd1][i]->line + "\n";
         }
+    }
+  
+  int cd2_al = cd2;
+  if(b.residue == "ASP" || b.residue == "GLU")
+    {
+      cd2_al = cd2%(b.altlocs.size());
     }
 
-  for(unsigned int i=0; i < b.atom.size(); i++)
+  for(unsigned int i=0; i < b.altlocs[cd2_al].size(); i++)
     {
-      if( !b.atom[i]->skip )
+      if( !b.altlocs[cd2_al][i]->skip )
         {
-            packedFile += b.atom[i]->line + "\n";
+            packedFile += b.altlocs[cd2_al][i]->line + "\n";
         }
     }
-  packedFile += a.makeConect();
-  packedFile += b.makeConect();
+  packedFile += a.makeConect(cd1);
+  packedFile += b.makeConect(cd2_al);
+
 
   // Now, let's set up some Babel information
   // First, we get the PDB format to tell
@@ -440,6 +432,94 @@ void PDB::addHydrogensToPair(AminoAcid& a, AminoAcid& b)
 }
 #endif
 
+// This adds hydrogens to LYS and will be implemented
+// when enough information about the placement of
+// the hydrogens is aquired.
+// This returns a boolean whether it worked or not.
+bool addHydrogenToARG (AminoAcid& aa)
+{
+	// This is a basic layout of the Hydrogens added
+	// in this function.
+	// As of now, H7 and H8 are not being added.
+	//     H2      H3
+	//      |      | 
+	//     NH1    NH2
+	//    /   \  /   \
+	//  H1     CZ     H4
+	//          |
+	//         NE 
+	//        /  \
+	//   H8-CD    H5  
+	//     /  \
+	//   H7    H6
+
+	Coordinates vectorA, vectorB, vectorC, vectorD, vectorE;
+	Coordinates vectorF, vectorG, vectorH, vectorI, tempVector;
+	Coordinates atomNH1, atomNH2, atomCZ, atomNE, atomCD, atomNULL;
+	for (int i = 0; i < aa.atom.size(); i++)
+	{
+		if (aa.atom[i]->name == " NH1")
+		{
+			atomNH1 = aa.atom[i]->coord;
+		}
+		else if (aa.atom[i]->name == " NH2")
+		{
+			atomNH2 = aa.atom[i]->coord;
+		}
+		else if (aa.atom[i]->name == " CZ ")
+		{
+			atomCZ = aa.atom[i]->coord;
+		}
+		else if (aa.atom[i]->name == " NE ")
+		{
+			atomNE = aa.atom[i]->coord;
+		}
+		else if (aa.atom[i]->name == " CD ")
+		{
+			atomCD = aa.atom[i]->coord;
+		}
+	}
+	if ( atomNH1 == atomNULL || atomNH2 == atomNULL || atomCZ == atomNULL ||
+		 atomNE == atomNULL || atomCD == atomNULL )
+	{
+		return false;
+	}
+
+	vectorA = defineVector(atomCZ, atomNH1);
+	vectorA = unitVector(vectorA);
+	vectorB = defineVector(atomCZ, atomNH2);
+	vectorB = unitVector(vectorB);
+	vectorC = crossProduct(vectorB, vectorA); 
+	vectorC = unitVector(vectorC);
+	vectorD = crossProduct(vectorA, vectorC);
+	vectorD = unitVector(vectorD);
+	vectorE = crossProduct(vectorC, vectorB);
+	vectorE = unitVector(vectorE);
+	// We can now use vectors A and D in 
+	// relation to atom NH1 to determine
+	// the locations of Hydrogens 1 and 2
+	// We can also use vectors E and B in
+	// relation to atom NH2 to determine
+	// the locations of Hydrogens 3 and 4
+
+	vectorF = defineVector(atomCZ, atomNE);
+	vectorF = unitVector(vectorF);
+	vectorG = defineVector(atomCD, atomNE);
+	vectorG = unitVector(vectorG);
+	vectorH = crossProduct(vectorF, vectorG);
+	vectorH = unitVector(vectorH);
+	vectorI = crossProduct(vectorH, vectorF);
+	vectorI = unitVector(vectorI);
+	// We can now use vectors F and I in
+	// relation to atom NE to determine
+	// the locations of Hydrogen 5 and 
+	// the same vectors in relation to 
+	// atom CD to determine the location 
+	// of Hydrogen 6
+
+	return true;
+}
+
 // Search the chain by id
 //    - Not used, right now
 vector<Chain>::iterator PDB::findChainNumber(char id)
@@ -488,10 +568,20 @@ void PDB::populateChains(bool center)
       AminoAcid aa;
       unsigned int residue_number = atoms[i].resSeq;
       char iCode = atoms[i].iCode;
+      vector<char> altloc_ids;
       while(residue_number == atoms[i].resSeq &&
             atoms[i].chainID == chainID &&
             atoms[i].iCode == iCode )
         {
+          // Determine how many alternate locations there are
+          if(atoms[i].altLoc != ' ')
+            {
+              vector<char>::iterator found = find(altloc_ids.begin(), altloc_ids.end(), atoms[i].altLoc);
+              if(found == altloc_ids.end())
+                {
+                  altloc_ids.push_back(atoms[i].altLoc);
+                }
+            }
           aa.atom.push_back(&atoms[i]);
           i++;
           if( i == atoms.size() )
@@ -500,7 +590,7 @@ void PDB::populateChains(bool center)
             }
         }
       i--;
-
+      aa.determineAltLoc(altloc_ids);
       aa.residue = atoms[i].residueName;
       vector<string>::iterator found1 = find(residue1->begin(), residue1->end(), aa.residue);
       vector<string>::iterator found2 = find(residue2->begin(), residue2->end(), aa.residue);
